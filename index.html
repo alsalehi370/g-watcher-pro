@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#080b10">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="G Watcher PRO">
+    <meta name="description" content="Personal live gold, OMR valuation and US Dollar Index terminal.">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <title>G Watcher Pro — Live Gold &amp; Dollar Index Terminal</title>
+    <style>
+        :root {
+            --bg-primary: #080b10;
+            --bg-surface: #111621;
+            --bg-elevated: #171e2c;
+            --border-subtle: #1e2738;
+            --border-highlight: #2e3b52;
+            --gold-primary: #f0b429;
+            --gold-bright: #ffd166;
+            --gold-dim: rgba(240, 180, 41, 0.14);
+            --text-primary: #edf2f7;
+            --text-secondary: #8a99ad;
+            --text-muted: #556478;
+            --up: #10b981;
+            --up-bg: rgba(16, 185, 129, 0.12);
+            --down: #ef4444;
+            --down-bg: rgba(239, 68, 68, 0.12);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg-primary);
+            background-image:
+                radial-gradient(circle at 15% 0%, rgba(240, 180, 41, 0.06), transparent 38%),
+                radial-gradient(circle at 85% 100%, rgba(16, 185, 129, 0.04), transparent 35%);
+            color: var(--text-primary);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .terminal {
+            width: 100%;
+            max-width: 1280px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* ---- Top Bar ---- */
+        .topbar {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            padding: 16px 24px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-mark {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(240, 180, 41, 0.22), rgba(240, 180, 41, 0.05));
+            border: 1px solid rgba(240, 180, 41, 0.4);
+            display: grid;
+            place-items: center;
+            font-weight: 800;
+            font-size: 18px;
+            color: var(--gold-primary);
+            text-shadow: 0 0 14px rgba(240, 180, 41, 0.45);
+        }
+
+        .brand-title {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .pro-badge {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #080b10;
+            background: linear-gradient(135deg, var(--gold-bright), var(--gold-primary));
+            padding: 2px 7px;
+            border-radius: 5px;
+        }
+
+        .brand-sub {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .topbar-controls {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .pill {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 7px 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .pill strong {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .rate-input {
+            width: 64px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-highlight);
+            border-radius: 6px;
+            color: var(--gold-primary);
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 2px 6px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .rate-input:focus {
+            outline: none;
+            border-color: var(--gold-primary);
+        }
+
+        .btn-refresh {
+            background: var(--gold-dim);
+            border: 1px solid rgba(240, 180, 41, 0.35);
+            color: var(--gold-primary);
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 7px 13px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .btn-refresh:hover {
+            background: rgba(240, 180, 41, 0.24);
+        }
+
+        .btn-refresh:active {
+            transform: scale(0.97);
+        }
+
+        /* ---- Status Dots ---- */
+        .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--up);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+            animation: pulse 2s infinite;
+            flex-shrink: 0;
+        }
+
+        .dot.offline {
+            background: var(--down);
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+            animation: none;
+        }
+
+        .dot.connecting {
+            background: var(--gold-primary);
+            box-shadow: 0 0 8px rgba(240, 180, 41, 0.5);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.35; }
+        }
+
+        /* ---- Live Market Grid (4 Cards) ---- */
+        .market-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        .card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: 18px;
+            padding: 20px 22px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: border-color 0.25s, transform 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(240, 180, 41, 0.45), transparent);
+            opacity: 0;
+            transition: opacity 0.25s;
+        }
+
+        .card:hover {
+            border-color: var(--border-highlight);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .card-label {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+        }
+
+        .card-tag {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--gold-primary);
+            background: var(--gold-dim);
+            padding: 2px 7px;
+            border-radius: 6px;
+            letter-spacing: 0.04em;
+        }
+
+        .price-block {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .price-row {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+            font-variant-numeric: tabular-nums;
+            line-height: 1.1;
+            transition: color 0.25s ease, text-shadow 0.25s ease;
+        }
+
+        .price-main {
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            color: var(--text-primary);
+        }
+
+        .price-secondary {
+            font-size: 22px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: var(--gold-bright);
+        }
+
+        .price-sub-note {
+            font-size: 12px;
+            color: var(--text-muted);
+            min-height: 24px;
+            display: flex;
+            align-items: center;
+        }
+
+        .unit {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        .up {
+            color: var(--up) !important;
+            text-shadow: 0 0 18px rgba(16, 185, 129, 0.32);
+        }
+
+        .down {
+            color: var(--down) !important;
+            text-shadow: 0 0 18px rgba(239, 68, 68, 0.32);
+        }
+
+        .card-footer {
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(30, 39, 56, 0.8);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .status-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .delta-badge {
+            font-variant-numeric: tabular-nums;
+            font-weight: 600;
+            font-size: 11px;
+            padding: 2px 7px;
+            border-radius: 6px;
+            background: var(--bg-elevated);
+            color: var(--text-secondary);
+        }
+
+        .delta-badge.pos {
+            background: var(--up-bg);
+            color: var(--up);
+        }
+
+        .delta-badge.neg {
+            background: var(--down-bg);
+            color: var(--down);
+        }
+
+        /* ---- Middle Section: Chart + Market Snapshot ---- */
+        .workspace-grid {
+            display: grid;
+            grid-template-columns: 1.65fr 1fr;
+            gap: 16px;
+        }
+
+        .panel {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: 18px;
+            padding: 22px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .panel-title {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-title span.accent-bar {
+            width: 3px;
+            height: 15px;
+            border-radius: 2px;
+            background: var(--gold-primary);
+        }
+
+        .chart-tabs {
+            display: flex;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 9px;
+            padding: 3px;
+            gap: 4px;
+        }
+
+        .chart-tab {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 5px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .chart-tab.active {
+            background: var(--gold-dim);
+            color: var(--gold-primary);
+        }
+
+        .chart-stats-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 14px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .chart-stats-bar span strong {
+            color: var(--text-primary);
+            margin-left: 4px;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 270px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        canvas#goldChart {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .chart-empty {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        /* ---- Market Snapshot List ---- */
+        .snapshot-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex: 1;
+            justify-content: space-between;
+        }
+
+        .snap-row {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 12px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .snap-left {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .snap-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .snap-desc {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .snap-right {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .snap-val {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .snap-val.gold {
+            color: var(--gold-bright);
+        }
+
+        .snap-sub {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 1px;
+        }
+
+        /* ---- Responsive Breakpoints ---- */
+        @media (max-width: 1100px) {
+            .market-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .workspace-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 600px) {
+            html { background: var(--bg-primary); }
+            body {
+                padding: max(10px, env(safe-area-inset-top)) 10px max(14px, env(safe-area-inset-bottom));
+                min-height: 100svh;
+            }
+            .terminal { gap: 12px; }
+            .topbar {
+                position: sticky;
+                top: max(6px, env(safe-area-inset-top));
+                z-index: 5;
+                gap: 10px;
+                padding: 12px;
+                border-radius: 14px;
+                backdrop-filter: blur(16px);
+                background: rgba(17, 22, 33, .94);
+            }
+            .brand-mark { width: 32px; height: 32px; }
+            .brand-title { font-size: 17px; }
+            .brand-sub { font-size: 10px; }
+            .topbar-controls { width: 100%; gap: 7px; }
+            .topbar-controls .pill { padding: 6px 8px; font-size: 10px; }
+            .topbar-controls .pill:first-child { flex: 1 1 100%; }
+            .rate-input { width: 58px; }
+            .btn-refresh { padding: 7px 10px; }
+            .market-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+            .card { min-width: 0; padding: 13px 12px; border-radius: 14px; min-height: 145px; }
+            .card-label { font-size: 10px; }
+            .card-tag { font-size: 8px; padding: 3px 5px; }
+            .price-main { font-size: clamp(19px, 5.8vw, 25px); }
+            .price-secondary { font-size: clamp(16px, 4.8vw, 21px); }
+            .unit { font-size: 9px; }
+            .price-sub-note { font-size: 10px; }
+            .card-footer { gap: 5px; font-size: 10px; }
+            .delta-badge { font-size: 10px; padding: 3px 6px; }
+            .workspace-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+            .panel { padding: 13px; border-radius: 14px; min-width: 0; }
+            .panel-header { flex-wrap: wrap; gap: 10px; }
+            .panel-title { font-size: 12px; }
+            .chart-tabs { gap: 4px; }
+            .chart-tab { padding: 6px 8px; font-size: 10px; }
+            .chart-stats-bar { flex-wrap: wrap; gap: 8px 12px; font-size: 10px; }
+            .chart-container { height: 210px; }
+            .snap-row { gap: 8px; }
+            .snap-name { font-size: 11px; }
+            .snap-desc, .snap-sub { font-size: 9px; }
+            .snap-val { font-size: 12px; }
+        }
+        @media (max-width: 360px) {
+            .market-grid { grid-template-columns: 1fr; }
+            .topbar-controls .pill { flex: 1 1 auto; }
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="terminal">
+    <!-- Top Terminal Bar -->
+    <header class="topbar">
+        <div class="brand">
+            <div class="brand-mark">G</div>
+            <div>
+                <div class="brand-title">G Watcher <span class="pro-badge">Pro</span></div>
+                <div class="brand-sub">Precious Metals &amp; OMR Valuation Terminal</div>
+            </div>
+        </div>
+
+        <div class="topbar-controls">
+            <div class="pill" title="Overall feed connection status">
+                <span class="dot connecting" id="global-dot"></span>
+                <span id="global-status">Connecting Feed...</span>
+            </div>
+
+            <div class="pill" title="USD to OMR conversion rate">
+                <span>USD/OMR:</span>
+                <input type="number" id="omr-rate-input" class="rate-input" step="0.0001" min="0.0001" value="0.3850" aria-label="USD to OMR exchange rate">
+            </div>
+
+            <div class="pill">
+                <span>Updated:</span>
+                <strong id="last-updated">--:--:--</strong>
+            </div>
+
+            <button type="button" class="btn-refresh" id="manual-refresh">Refresh</button>
+        </div>
+    </header>
+
+    <!-- Live Market Dashboard -->
+    <section class="market-grid" aria-label="Live market prices">
+        <!-- XAU/USD Spot -->
+        <article class="card">
+            <div>
+                <div class="card-header">
+                    <span class="card-label">Spot Gold (XAU/USD)</span>
+                    <span class="card-tag">SPOT</span>
+                </div>
+                <div class="price-block">
+                    <div class="price-row">
+                        <span class="price-main" id="gold-price">--</span>
+                        <span class="unit">USD/oz</span>
+                    </div>
+                    <div class="price-sub-note" id="gold-omr-oz">-- OMR/oz</div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <span class="status-wrap">
+                    <span class="dot connecting" id="gold-dot"></span>
+                    <span id="gold-status">Connecting</span>
+                </span>
+                <span class="delta-badge" id="gold-delta">0.00%</span>
+            </div>
+        </article>
+
+        <!-- 24K Gold per Gram -->
+        <article class="card">
+            <div>
+                <div class="card-header">
+                    <span class="card-label">24K Gold (999)</span>
+                    <span class="card-tag">PER GRAM</span>
+                </div>
+                <div class="price-block">
+                    <div class="price-row">
+                        <span class="price-secondary" id="g24-omr">--</span>
+                        <span class="unit">OMR/g</span>
+                    </div>
+                    <div class="price-row">
+                        <span class="price-main" id="g24-price">--</span>
+                        <span class="unit">USD/g</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <span class="status-wrap">
+                    <span class="dot connecting" id="g24-dot"></span>
+                    <span id="g24-status">Connecting</span>
+                </span>
+                <span class="delta-badge" id="g24-delta">0.00%</span>
+            </div>
+        </article>
+
+        <!-- 21K Gold per Gram -->
+        <article class="card">
+            <div>
+                <div class="card-header">
+                    <span class="card-label">21K Gold (875)</span>
+                    <span class="card-tag">PER GRAM</span>
+                </div>
+                <div class="price-block">
+                    <div class="price-row">
+                        <span class="price-secondary" id="g21-omr">--</span>
+                        <span class="unit">OMR/g</span>
+                    </div>
+                    <div class="price-row">
+                        <span class="price-main" id="g21-price">--</span>
+                        <span class="unit">USD/g</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <span class="status-wrap">
+                    <span class="dot connecting" id="g21-dot"></span>
+                    <span id="g21-status">Connecting</span>
+                </span>
+                <span class="delta-badge" id="g21-delta">0.00%</span>
+            </div>
+        </article>
+
+        <!-- US Dollar Index -->
+        <article class="card">
+            <div>
+                <div class="card-header">
+                    <span class="card-label">US Dollar Index</span>
+                    <span class="card-tag">DXY</span>
+                </div>
+                <div class="price-block">
+                    <div class="price-row">
+                        <span class="price-main" id="dxy-price">--</span>
+                        <span class="unit">PTS</span>
+                    </div>
+                    <div class="price-sub-note" id="dxy-direction">Awaiting ticks</div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <span class="status-wrap">
+                    <span class="dot connecting" id="dxy-dot"></span>
+                    <span id="dxy-status">Connecting</span>
+                </span>
+                <span class="delta-badge" id="dxy-delta">0.00%</span>
+            </div>
+        </article>
+    </section>
+
+    <!-- Chart & Market Snapshot -->
+    <section class="workspace-grid">
+        <!-- Live Gold Session Chart -->
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <span class="accent-bar"></span>
+                    <span>Live Session Price Movement</span>
+                </div>
+                <div class="chart-tabs" role="tablist">
+                    <button type="button" class="chart-tab active" data-series="xau">XAU/USD</button>
+                    <button type="button" class="chart-tab" data-series="omr24">24K OMR/g</button>
+                </div>
+            </div>
+
+            <div class="chart-stats-bar">
+                <span>Session Open:<strong id="stat-open">--</strong></span>
+                <span>High:<strong id="stat-high">--</strong></span>
+                <span>Low:<strong id="stat-low">--</strong></span>
+                <span>Ticks:<strong id="stat-ticks">0</strong></span>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="goldChart"></canvas>
+                <div class="chart-empty" id="chart-empty">Collecting live market ticks...</div>
+            </div>
+        </div>
+
+        <!-- Market Snapshot -->
+        <aside class="panel" aria-label="Market snapshot">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <span class="accent-bar"></span>
+                    <span>Market Snapshot</span>
+                </div>
+                <span class="card-tag" id="snapshot-trend">NEUTRAL</span>
+            </div>
+
+            <div class="snapshot-list">
+                <div class="snap-row">
+                    <div class="snap-left">
+                        <span class="snap-name">Spot Gold Valuation</span>
+                        <span class="snap-desc">1 Troy Ounce (31.1035g)</span>
+                    </div>
+                    <div class="snap-right">
+                        <div class="snap-val" id="snap-spot-usd">-- USD</div>
+                        <div class="snap-sub" id="snap-spot-omr">-- OMR</div>
+                    </div>
+                </div>
+
+                <div class="snap-row">
+                    <div class="snap-left">
+                        <span class="snap-name">24K Gold (10g Bar)</span>
+                        <span class="snap-desc">999 Fine Bullion Equivalent</span>
+                    </div>
+                    <div class="snap-right">
+                        <div class="snap-val gold" id="snap-24k-10g-omr">-- OMR</div>
+                        <div class="snap-sub" id="snap-24k-10g-usd">-- USD</div>
+                    </div>
+                </div>
+
+                <div class="snap-row">
+                    <div class="snap-left">
+                        <span class="snap-name">21K Gold (10g Jewelry)</span>
+                        <span class="snap-desc">875 Standard Retail Weight</span>
+                    </div>
+                    <div class="snap-right">
+                        <div class="snap-val gold" id="snap-21k-10g-omr">-- OMR</div>
+                        <div class="snap-sub" id="snap-21k-10g-usd">-- USD</div>
+                    </div>
+                </div>
+
+                <div class="snap-row">
+                    <div class="snap-left">
+                        <span class="snap-name">US Dollar Index (DXY)</span>
+                        <span class="snap-desc">USD Basket Strength</span>
+                    </div>
+                    <div class="snap-right">
+                        <div class="snap-val" id="snap-dxy">--</div>
+                        <div class="snap-sub" id="snap-dxy-change">Session: --</div>
+                    </div>
+                </div>
+
+                <div class="snap-row">
+                    <div class="snap-left">
+                        <span class="snap-name">Feed Synchronization</span>
+                        <span class="snap-desc">5s Auto-Poll &middot; Local Time</span>
+                    </div>
+                    <div class="snap-right">
+                        <div class="snap-val" id="snap-time">--:--:--</div>
+                        <div class="snap-sub" id="snap-date">--</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </section>
+</div>
+
+<script>
+    // ============================================================
+    // Configuration & Constants
+    // ============================================================
+    const CONFIG = {
+        goldSymbol: 'XAUUSD',
+        dxySymbol: 'DXY',
+        pollInterval: 5000,
+        requestTimeout: 8000,
+        apiBase: 'https://biquote.io/api',
+        usdToOmr: Number(localStorage.getItem('gwatcher-usd-omr')) || 0.3850,
+        maxHistoryPoints: 120
+    };
+
+    const TROY_OUNCE_IN_GRAMS = 31.1034768;
+    const PURITY_24K = 0.999;
+    const PURITY_21K = 21 / 24;
+
+    const state = {
+        gold: { openPrice: null, lastPrice: null, flashTimers: [], online: false },
+        g24:  { openPrice: null, lastPrice: null, flashTimers: [] },
+        g21:  { openPrice: null, lastPrice: null, flashTimers: [] },
+        dxy:  { openPrice: null, lastPrice: null, flashTimers: [], online: false },
+        history: [], // { time: Date, xau: number }
+        activeSeries: 'xau'
+    };
+
+    let isTickRunning = false;
+
+    const els = {
+        globalDot: document.getElementById('global-dot'),
+        globalStatus: document.getElementById('global-status'),
+        lastUpdated: document.getElementById('last-updated'),
+        omrRateInput: document.getElementById('omr-rate-input'),
+        manualRefresh: document.getElementById('manual-refresh'),
+
+        goldPrice: document.getElementById('gold-price'),
+        goldOmrOz: document.getElementById('gold-omr-oz'),
+        goldDelta: document.getElementById('gold-delta'),
+        goldDot: document.getElementById('gold-dot'),
+        goldStatus: document.getElementById('gold-status'),
+
+        g24Price: document.getElementById('g24-price'),
+        g24Omr: document.getElementById('g24-omr'),
+        g24Delta: document.getElementById('g24-delta'),
+        g24Dot: document.getElementById('g24-dot'),
+        g24Status: document.getElementById('g24-status'),
+
+        g21Price: document.getElementById('g21-price'),
+        g21Omr: document.getElementById('g21-omr'),
+        g21Delta: document.getElementById('g21-delta'),
+        g21Dot: document.getElementById('g21-dot'),
+        g21Status: document.getElementById('g21-status'),
+
+        dxyPrice: document.getElementById('dxy-price'),
+        dxyDirection: document.getElementById('dxy-direction'),
+        dxyDelta: document.getElementById('dxy-delta'),
+        dxyDot: document.getElementById('dxy-dot'),
+        dxyStatus: document.getElementById('dxy-status'),
+
+        statOpen: document.getElementById('stat-open'),
+        statHigh: document.getElementById('stat-high'),
+        statLow: document.getElementById('stat-low'),
+        statTicks: document.getElementById('stat-ticks'),
+        chartEmpty: document.getElementById('chart-empty'),
+        canvas: document.getElementById('goldChart'),
+
+        snapshotTrend: document.getElementById('snapshot-trend'),
+        snapSpotUsd: document.getElementById('snap-spot-usd'),
+        snapSpotOmr: document.getElementById('snap-spot-omr'),
+        snap24k10gOmr: document.getElementById('snap-24k-10g-omr'),
+        snap24k10gUsd: document.getElementById('snap-24k-10g-usd'),
+        snap21k10gOmr: document.getElementById('snap-21k-10g-omr'),
+        snap21k10gUsd: document.getElementById('snap-21k-10g-usd'),
+        snapDxy: document.getElementById('snap-dxy'),
+        snapDxyChange: document.getElementById('snap-dxy-change'),
+        snapTime: document.getElementById('snap-time'),
+        snapDate: document.getElementById('snap-date')
+    };
+
+    els.omrRateInput.value = CONFIG.usdToOmr.toFixed(4);
+
+    // ============================================================
+    // Helpers
+    // ============================================================
+    function formatNum(value, decimals) {
+        if (value == null || !Number.isFinite(value)) return '--';
+        return Number(value).toLocaleString('en-US', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
+    }
+
+    function flashElement(el, direction, stateKey) {
+        if (!el || !direction) return;
+        el.classList.remove('up', 'down');
+        void el.offsetWidth;
+        el.classList.add(direction === 'up' ? 'up' : 'down');
+
+        const timers = state[stateKey].flashTimers;
+        const timer = setTimeout(() => {
+            el.classList.remove('up', 'down');
+            state[stateKey].flashTimers =
+                state[stateKey].flashTimers.filter((id) => id !== timer);
+        }, 850);
+        timers.push(timer);
+    }
+
+    function updateDeltaBadge(badgeEl, current, open) {
+        if (!badgeEl || open == null || open === 0) return;
+        const pct = ((current - open) / open) * 100;
+        const sign = pct > 0 ? '+' : '';
+        badgeEl.textContent = `${sign}${pct.toFixed(2)}%`;
+        badgeEl.classList.remove('pos', 'neg');
+        if (pct > 0.0001) badgeEl.classList.add('pos');
+        else if (pct < -0.0001) badgeEl.classList.add('neg');
+    }
+
+    function setFeedStatus(dotEl, statusEl, online) {
+        dotEl.classList.remove('connecting', 'offline');
+        if (!online) dotEl.classList.add('offline');
+        statusEl.textContent = online ? 'Live' : 'Offline';
+    }
+
+    function updateGlobalStatus() {
+        const goldOk = state.gold.online;
+        const dxyOk = state.dxy.online;
+        els.globalDot.classList.remove('connecting', 'offline');
+
+        if (goldOk && dxyOk) {
+            els.globalStatus.textContent = 'All Feeds Live';
+        } else if (goldOk || dxyOk) {
+            els.globalDot.classList.add('connecting');
+            els.globalStatus.textContent = 'Partial Feed';
+        } else {
+            els.globalDot.classList.add('offline');
+            els.globalStatus.textContent = 'Feed Offline';
+        }
+    }
+
+    function updateTimestamp() {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+        const dateStr = now.toLocaleDateString([], {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric'
+        });
+        els.lastUpdated.textContent = timeStr;
+        els.snapTime.textContent = timeStr;
+        els.snapDate.textContent = dateStr;
+    }
+
+    // ============================================================
+    // API Fetch
+    // ============================================================
+    async function fetchQuote(symbol) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), CONFIG.requestTimeout);
+
+        try {
+            const url = `${CONFIG.apiBase}/${encodeURIComponent(symbol)}`;
+            const resp = await fetch(url, {
+                cache: 'no-store',
+                signal: controller.signal
+            });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+            const data = await resp.json();
+            const rawPrice = data.mid ?? data.bid ?? data.ask ?? null;
+            const price = Number(rawPrice);
+
+            if (rawPrice == null || !Number.isFinite(price) || price <= 0) {
+                throw new Error('Invalid price payload');
+            }
+            return price;
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    }
+
+    // ============================================================
+    // UI Updaters
+    // ============================================================
+    function renderGoldDerivedValues(goldPrice, animate = true) {
+        const rate = CONFIG.usdToOmr;
+        const perGram = goldPrice / TROY_OUNCE_IN_GRAMS;
+        const g24Usd = perGram * PURITY_24K;
+        const g21Usd = perGram * PURITY_21K;
+        const g24Omr = g24Usd * rate;
+        const g21Omr = g21Usd * rate;
+
+        // Spot Gold
+        if (state.gold.openPrice == null) state.gold.openPrice = goldPrice;
+        const goldPrev = state.gold.lastPrice;
+        els.goldPrice.textContent = formatNum(goldPrice, 2);
+        els.goldOmrOz.textContent = `${formatNum(goldPrice * rate, 2)} OMR/oz`;
+        updateDeltaBadge(els.goldDelta, goldPrice, state.gold.openPrice);
+
+        if (animate && goldPrev != null && goldPrice !== goldPrev) {
+            flashElement(els.goldPrice, goldPrice > goldPrev ? 'up' : 'down', 'gold');
+        }
+        state.gold.lastPrice = goldPrice;
+
+        // 24K Gold
+        if (state.g24.openPrice == null) state.g24.openPrice = g24Usd;
+        const g24Prev = state.g24.lastPrice;
+        els.g24Price.textContent = formatNum(g24Usd, 2);
+        els.g24Omr.textContent = formatNum(g24Omr, 3);
+        updateDeltaBadge(els.g24Delta, g24Usd, state.g24.openPrice);
+
+        if (animate && g24Prev != null && g24Usd !== g24Prev) {
+            const dir = g24Usd > g24Prev ? 'up' : 'down';
+            flashElement(els.g24Price, dir, 'g24');
+            flashElement(els.g24Omr, dir, 'g24');
+        }
+        state.g24.lastPrice = g24Usd;
+
+        // 21K Gold
+        if (state.g21.openPrice == null) state.g21.openPrice = g21Usd;
+        const g21Prev = state.g21.lastPrice;
+        els.g21Price.textContent = formatNum(g21Usd, 2);
+        els.g21Omr.textContent = formatNum(g21Omr, 3);
+        updateDeltaBadge(els.g21Delta, g21Usd, state.g21.openPrice);
+
+        if (animate && g21Prev != null && g21Usd !== g21Prev) {
+            const dir = g21Usd > g21Prev ? 'up' : 'down';
+            flashElement(els.g21Price, dir, 'g21');
+            flashElement(els.g21Omr, dir, 'g21');
+        }
+        state.g21.lastPrice = g21Usd;
+
+        // Snapshot Valuations
+        els.snapSpotUsd.textContent = `$${formatNum(goldPrice, 2)}`;
+        els.snapSpotOmr.textContent = `${formatNum(goldPrice * rate, 2)} OMR`;
+
+        els.snap24k10gOmr.textContent = `${formatNum(g24Omr * 10, 2)} OMR`;
+        els.snap24k10gUsd.textContent = `$${formatNum(g24Usd * 10, 2)} USD`;
+
+        els.snap21k10gOmr.textContent = `${formatNum(g21Omr * 10, 2)} OMR`;
+        els.snap21k10gUsd.textContent = `$${formatNum(g21Usd * 10, 2)} USD`;
+
+        // Trend Tag
+        const diff = goldPrice - state.gold.openPrice;
+        if (diff > 0.01) {
+            els.snapshotTrend.textContent = `BULLISH +$${diff.toFixed(2)}`;
+            els.snapshotTrend.style.color = 'var(--up)';
+            els.snapshotTrend.style.background = 'var(--up-bg)';
+        } else if (diff < -0.01) {
+            els.snapshotTrend.textContent = `BEARISH -$${Math.abs(diff).toFixed(2)}`;
+            els.snapshotTrend.style.color = 'var(--down)';
+            els.snapshotTrend.style.background = 'var(--down-bg)';
+        } else {
+            els.snapshotTrend.textContent = 'SESSION FLAT';
+            els.snapshotTrend.style.color = 'var(--gold-primary)';
+            els.snapshotTrend.style.background = 'var(--gold-dim)';
+        }
+    }
+
+    function renderDxy(dxyPrice) {
+        if (state.dxy.openPrice == null) state.dxy.openPrice = dxyPrice;
+        const prev = state.dxy.lastPrice;
+
+        els.dxyPrice.textContent = formatNum(dxyPrice, 3);
+        updateDeltaBadge(els.dxyDelta, dxyPrice, state.dxy.openPrice);
+
+        const diff = dxyPrice - state.dxy.openPrice;
+        const sign = diff >= 0 ? '+' : '';
+        els.dxyDirection.textContent = `Session: ${sign}${diff.toFixed(3)} pts`;
+
+        els.snapDxy.textContent = formatNum(dxyPrice, 3);
+        els.snapDxyChange.textContent = `Session: ${sign}${diff.toFixed(3)} (${((diff / state.dxy.openPrice) * 100).toFixed(2)}%)`;
+
+        if (prev != null && dxyPrice !== prev) {
+            flashElement(els.dxyPrice, dxyPrice > prev ? 'up' : 'down', 'dxy');
+        }
+        state.dxy.lastPrice = dxyPrice;
+    }
+
+    // ============================================================
+    // Session Chart (Canvas)
+    // ============================================================
+    function getSeriesValues() {
+        const rate = CONFIG.usdToOmr;
+        return state.history.map((pt) => {
+            if (state.activeSeries === 'omr24') {
+                return (pt.xau / TROY_OUNCE_IN_GRAMS) * PURITY_24K * rate;
+            }
+            return pt.xau;
+        });
+    }
+
+    function drawChart() {
+        const canvas = els.canvas;
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+
+        if (rect.width === 0 || rect.height === 0) return;
+
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+
+        const w = rect.width;
+        const h = rect.height;
+        ctx.clearRect(0, 0, w, h);
+
+        const values = getSeriesValues();
+        const decimals = state.activeSeries === 'omr24' ? 3 : 2;
+
+        els.statTicks.textContent = values.length;
+
+        if (values.length === 0) {
+            els.chartEmpty.style.display = 'flex';
+            return;
+        }
+
+        els.chartEmpty.style.display = 'none';
+
+        const openVal = values[0];
+        const highVal = Math.max(...values);
+        const lowVal = Math.min(...values);
+        const lastVal = values[values.length - 1];
+
+        els.statOpen.textContent = formatNum(openVal, decimals);
+        els.statHigh.textContent = formatNum(highVal, decimals);
+        els.statLow.textContent = formatNum(lowVal, decimals);
+
+        const padLeft = 14;
+        const padRight = 68;
+        const padTop = 20;
+        const padBottom = 26;
+        const plotW = w - padLeft - padRight;
+        const plotH = h - padTop - padBottom;
+
+        let min = lowVal;
+        let max = highVal;
+        if (max === min) {
+            const pad = max * 0.0005 || 0.01;
+            max += pad;
+            min -= pad;
+        } else {
+            const spread = max - min;
+            max += spread * 0.14;
+            min -= spread * 0.14;
+        }
+
+        const yFor = (val) => padTop + ((max - val) / (max - min)) * plotH;
+        const xFor = (idx) => {
+            if (values.length === 1) return padLeft + plotW / 2;
+            return padLeft + (idx / (values.length - 1)) * plotW;
+        };
+
+        // Horizontal Grid & Price Axis
+        ctx.font = '11px Inter, system-ui, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        const gridSteps = 4;
+        for (let i = 0; i <= gridSteps; i++) {
+            const ratio = i / gridSteps;
+            const y = padTop + ratio * plotH;
+            const val = max - ratio * (max - min);
+
+            ctx.strokeStyle = 'rgba(30, 39, 56, 0.7)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(padLeft, y);
+            ctx.lineTo(w - padRight, y);
+            ctx.stroke();
+
+            ctx.fillStyle = '#64748b';
+            ctx.fillText(val.toFixed(decimals), w - padRight + 8, y);
+        }
+
+        // Session Open Reference Line
+        const openY = yFor(openVal);
+        ctx.save();
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = 'rgba(240, 180, 41, 0.45)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(padLeft, openY);
+        ctx.lineTo(w - padRight, openY);
+        ctx.stroke();
+        ctx.restore();
+
+        // Line Color based on Session Performance
+        const isUp = lastVal >= openVal;
+        const strokeColor = isUp ? '#f0b429' : '#ef4444';
+
+        // Area Fill
+        if (values.length > 1) {
+            const grad = ctx.createLinearGradient(0, padTop, 0, padTop + plotH);
+            if (isUp) {
+                grad.addColorStop(0, 'rgba(240, 180, 41, 0.26)');
+                grad.addColorStop(1, 'rgba(240, 180, 41, 0.0)');
+            } else {
+                grad.addColorStop(0, 'rgba(239, 68, 68, 0.24)');
+                grad.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(xFor(0), yFor(values[0]));
+            for (let i = 1; i < values.length; i++) {
+                ctx.lineTo(xFor(i), yFor(values[i]));
+            }
+            ctx.lineTo(xFor(values.length - 1), padTop + plotH);
+            ctx.lineTo(xFor(0), padTop + plotH);
+            ctx.closePath();
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            // Price Line
+            ctx.beginPath();
+            ctx.moveTo(xFor(0), yFor(values[0]));
+            for (let i = 1; i < values.length; i++) {
+                ctx.lineTo(xFor(i), yFor(values[i]));
+            }
+            ctx.strokeStyle = strokeColor;
+            ctx.lineWidth = 2.2;
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+        }
+
+        // Latest Point Marker & Tag
+        const lastX = xFor(values.length - 1);
+        const lastY = yFor(lastVal);
+
+        ctx.beginPath();
+        ctx.arc(lastX, lastY, 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = strokeColor;
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#080b10';
+        ctx.stroke();
+
+        // Highlighted Current Price Pill on Axis
+        const tagY = Math.min(Math.max(lastY, padTop + 8), padTop + plotH - 8);
+        ctx.fillStyle = strokeColor;
+        ctx.beginPath();
+        ctx.roundRect(w - padRight + 4, tagY - 10, padRight - 8, 20, 4);
+        ctx.fill();
+
+        ctx.fillStyle = '#080b10';
+        ctx.font = 'bold 11px Inter, system-ui, sans-serif';
+        ctx.fillText(lastVal.toFixed(decimals), w - padRight + 8, tagY);
+
+        // Time Labels (First & Last Tick)
+        ctx.fillStyle = '#556478';
+        ctx.font = '10px Inter, system-ui, sans-serif';
+        ctx.textAlign = 'left';
+        const firstTime = state.history[0].time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const lastTime = state.history[state.history.length - 1].time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        ctx.fillText(firstTime, padLeft, h - 10);
+        if (values.length > 1) {
+            ctx.textAlign = 'right';
+            ctx.fillText(lastTime, w - padRight, h - 10);
+        }
+    }
+
+    // ============================================================
+    // Main Polling Loop
+    // ============================================================
+    async function tick() {
+        if (isTickRunning) return;
+        isTickRunning = true;
+
+        try {
+            const [goldResult, dxyResult] = await Promise.allSettled([
+                fetchQuote(CONFIG.goldSymbol),
+                fetchQuote(CONFIG.dxySymbol)
+            ]);
+
+            if (goldResult.status === 'fulfilled') {
+                const goldPrice = goldResult.value;
+                state.gold.online = true;
+                setFeedStatus(els.goldDot, els.goldStatus, true);
+                setFeedStatus(els.g24Dot, els.g24Status, true);
+                setFeedStatus(els.g21Dot, els.g21Status, true);
+
+                renderGoldDerivedValues(goldPrice, true);
+
+                state.history.push({ time: new Date(), xau: goldPrice });
+                if (state.history.length > CONFIG.maxHistoryPoints) {
+                    state.history.shift();
+                }
+                drawChart();
+            } else {
+                console.warn(`[${CONFIG.goldSymbol}] Fetch failed:`, goldResult.reason?.message);
+                state.gold.online = false;
+                setFeedStatus(els.goldDot, els.goldStatus, false);
+                setFeedStatus(els.g24Dot, els.g24Status, false);
+                setFeedStatus(els.g21Dot, els.g21Status, false);
+            }
+
+            if (dxyResult.status === 'fulfilled') {
+                state.dxy.online = true;
+                setFeedStatus(els.dxyDot, els.dxyStatus, true);
+                renderDxy(dxyResult.value);
+            } else {
+                console.warn(`[${CONFIG.dxySymbol}] Fetch failed:`, dxyResult.reason?.message);
+                state.dxy.online = false;
+                setFeedStatus(els.dxyDot, els.dxyStatus, false);
+            }
+
+            if (goldResult.status === 'fulfilled' || dxyResult.status === 'fulfilled') {
+                updateTimestamp();
+            }
+            updateGlobalStatus();
+        } finally {
+            isTickRunning = false;
+        }
+    }
+
+    // ============================================================
+    // Event Listeners & Boot
+    // ============================================================
+    els.omrRateInput.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        if (Number.isFinite(val) && val > 0) {
+            CONFIG.usdToOmr = val;
+            try { localStorage.setItem('gwatcher-usd-omr', String(val)); } catch (_) {}
+            if (state.gold.lastPrice != null) {
+                renderGoldDerivedValues(state.gold.lastPrice, false);
+                drawChart();
+            }
+        }
+    });
+
+    els.manualRefresh.addEventListener('click', () => {
+        tick();
+    });
+
+    document.querySelectorAll('.chart-tab').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.chart-tab').forEach((b) => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.activeSeries = btn.dataset.series;
+            drawChart();
+        });
+    });
+
+    window.addEventListener('resize', drawChart);
+
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) tick();
+    });
+
+    tick();
+    setInterval(() => {
+        if (!document.hidden) tick();
+    }, CONFIG.pollInterval);
+
+    // Installable PWA shell; market quotes still require an internet connection.
+    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+        window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js').catch(err => console.warn('PWA offline support unavailable:', err)));
+    }
+</script>
+
+</body>
+</html>
