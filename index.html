@@ -50,6 +50,13 @@
             align-items: center;
         }
 
+        body[dir="rtl"] { font-family: Tahoma, Arial, sans-serif; }
+        body[dir="rtl"] .topbar, body[dir="rtl"] .card, body[dir="rtl"] .panel { text-align: right; }
+        body[dir="rtl"] .brand, body[dir="rtl"] .topbar-controls { direction: rtl; }
+        body[dir="rtl"] .rate-input { text-align: left; }
+        body[dir="rtl"] .snap-right { text-align: left; }
+        body[dir="rtl"] .chart-stats-bar { direction: rtl; }
+
         .terminal {
             width: 100%;
             max-width: 1280px;
@@ -550,7 +557,14 @@
                 padding: max(10px, env(safe-area-inset-top)) 10px max(14px, env(safe-area-inset-bottom));
                 min-height: 100svh;
             }
-            .terminal { gap: 12px; }
+            body[dir="rtl"] { font-family: Tahoma, Arial, sans-serif; }
+        body[dir="rtl"] .topbar, body[dir="rtl"] .card, body[dir="rtl"] .panel { text-align: right; }
+        body[dir="rtl"] .brand, body[dir="rtl"] .topbar-controls { direction: rtl; }
+        body[dir="rtl"] .rate-input { text-align: left; }
+        body[dir="rtl"] .snap-right { text-align: left; }
+        body[dir="rtl"] .chart-stats-bar { direction: rtl; }
+
+        .terminal { gap: 12px; }
             .topbar {
                 position: sticky;
                 top: max(6px, env(safe-area-inset-top));
@@ -628,6 +642,7 @@
                 <strong id="last-updated">--:--:--</strong>
             </div>
 
+            <button type="button" class="btn-refresh" id="language-toggle" aria-label="Switch language">العربية</button>
             <button type="button" class="btn-refresh" id="manual-refresh">Refresh</button>
         </div>
     </header>
@@ -956,7 +971,7 @@
     function setFeedStatus(dotEl, statusEl, online) {
         dotEl.classList.remove('connecting', 'offline');
         if (!online) dotEl.classList.add('offline');
-        statusEl.textContent = online ? 'Live' : 'Offline';
+        statusEl.textContent = tr(online ? 'Live' : 'Offline');
     }
 
     function updateGlobalStatus() {
@@ -965,13 +980,13 @@
         els.globalDot.classList.remove('connecting', 'offline');
 
         if (goldOk && dxyOk) {
-            els.globalStatus.textContent = 'All Feeds Live';
+            els.globalStatus.textContent = tr('All Feeds Live');
         } else if (goldOk || dxyOk) {
             els.globalDot.classList.add('connecting');
-            els.globalStatus.textContent = 'Partial Feed';
+            els.globalStatus.textContent = tr('Partial Feed');
         } else {
             els.globalDot.classList.add('offline');
-            els.globalStatus.textContent = 'Feed Offline';
+            els.globalStatus.textContent = tr('Feed Offline');
         }
     }
 
@@ -1084,15 +1099,15 @@
         // Trend Tag
         const diff = goldPrice - state.gold.openPrice;
         if (diff > 0.01) {
-            els.snapshotTrend.textContent = `BULLISH +$${diff.toFixed(2)}`;
+            els.snapshotTrend.textContent = `${tr('BULLISH')} +$${diff.toFixed(2)}`;
             els.snapshotTrend.style.color = 'var(--up)';
             els.snapshotTrend.style.background = 'var(--up-bg)';
         } else if (diff < -0.01) {
-            els.snapshotTrend.textContent = `BEARISH -$${Math.abs(diff).toFixed(2)}`;
+            els.snapshotTrend.textContent = `${tr('BEARISH')} -$${Math.abs(diff).toFixed(2)}`;
             els.snapshotTrend.style.color = 'var(--down)';
             els.snapshotTrend.style.background = 'var(--down-bg)';
         } else {
-            els.snapshotTrend.textContent = 'SESSION FLAT';
+            els.snapshotTrend.textContent = tr('SESSION FLAT');
             els.snapshotTrend.style.color = 'var(--gold-primary)';
             els.snapshotTrend.style.background = 'var(--gold-dim)';
         }
@@ -1107,10 +1122,10 @@
 
         const diff = dxyPrice - state.dxy.openPrice;
         const sign = diff >= 0 ? '+' : '';
-        els.dxyDirection.textContent = `Session: ${sign}${diff.toFixed(3)} pts`;
+        els.dxyDirection.textContent = `${tr('Session: ')}${sign}${diff.toFixed(3)} pts`;
 
         els.snapDxy.textContent = formatNum(dxyPrice, 3);
-        els.snapDxyChange.textContent = `Session: ${sign}${diff.toFixed(3)} (${((diff / state.dxy.openPrice) * 100).toFixed(2)}%)`;
+        els.snapDxyChange.textContent = `${tr('Session: ')}${sign}${diff.toFixed(3)} (${((diff / state.dxy.openPrice) * 100).toFixed(2)}%)`;
 
         if (prev != null && dxyPrice !== prev) {
             flashElement(els.dxyPrice, dxyPrice > prev ? 'up' : 'down', 'dxy');
@@ -1355,6 +1370,75 @@
     }
 
     // ============================================================
+    // English / Arabic interface
+    // ============================================================
+    const I18N = {
+        'Precious Metals & OMR Valuation Terminal': 'محطة المعادن الثمينة وتقييم الأسعار بالريال العُماني',
+        'Connecting Feed...': 'جارٍ الاتصال بمصادر البيانات...', 'USD/OMR:': 'دولار/ريال عُماني:',
+        'Updated:': 'آخر تحديث:', 'Refresh': 'تحديث', 'Spot Gold (XAU/USD)': 'الذهب الفوري (XAU/USD)',
+        'SPOT': 'فوري', 'PER GRAM': 'للجرام', '24K Gold (999)': 'ذهب عيار 24 (999)', '21K Gold (875)': 'ذهب عيار 21 (875)', 'Connecting': 'جارٍ الاتصال', 'US Dollar Index': 'مؤشر الدولار الأمريكي',
+        'Awaiting ticks': 'بانتظار تحديثات السوق', 'Live Session Price Movement': 'حركة الأسعار خلال الجلسة',
+        'Session Open:': 'افتتاح الجلسة:', 'High:': 'الأعلى:', 'Low:': 'الأدنى:', 'Ticks:': 'التحديثات:',
+        'Collecting live market ticks...': 'جارٍ جمع تحديثات السوق المباشرة...', 'Market Snapshot': 'ملخص السوق',
+        'NEUTRAL': 'محايد', 'Spot Gold Valuation': 'تقييم الذهب الفوري', '1 Troy Ounce (31.1035g)': 'أونصة تروي واحدة (31.1035 جرام)',
+        '24K Gold (10g Bar)': 'ذهب عيار 24 (سبيكة 10 جرام)', '999 Fine Bullion Equivalent': 'ما يعادل ذهبًا نقيًا بدرجة 999',
+        '21K Gold (10g Jewelry)': 'ذهب عيار 21 (مجوهرات 10 جرام)', '875 Standard Retail Weight': 'الوزن القياسي لذهب عيار 875',
+        'US Dollar Index (DXY)': 'مؤشر الدولار الأمريكي (DXY)', 'USD Basket Strength': 'قوة سلة العملات مقابل الدولار',
+        'Feed Synchronization': 'مزامنة مصادر البيانات', '5s Auto-Poll · Local Time': 'تحديث تلقائي كل 5 ثوانٍ · التوقيت المحلي',
+        'Live': 'مباشر', 'Offline': 'غير متصل', 'All Feeds Live': 'جميع المصادر تعمل', 'Partial Feed': 'بعض المصادر تعمل',
+        'Feed Offline': 'مصادر البيانات غير متصلة', 'BULLISH': 'اتجاه صاعد', 'BEARISH': 'اتجاه هابط', 'SESSION FLAT': 'استقرار خلال الجلسة',
+        'Session:': 'الجلسة:', 'Awaiting': 'بانتظار', 'Switch language': 'تغيير اللغة'
+    };
+    const dynamicText = new Map();
+    function currentLanguage() { return localStorage.getItem('gwatcher-language') || 'en'; }
+    function tr(value) {
+        if (currentLanguage() !== 'ar') return value;
+        if (I18N[value]) return I18N[value];
+        if (value.startsWith('Session: ')) return value.replace('Session: ', 'الجلسة: ');
+        if (value.startsWith('BULLISH')) return value.replace('BULLISH', 'اتجاه صاعد');
+        if (value.startsWith('BEARISH')) return value.replace('BEARISH', 'اتجاه هابط');
+        return value;
+    }
+    function applyLanguage(lang) {
+        localStorage.setItem('gwatcher-language', lang);
+        const isArabic = lang === 'ar';
+        document.documentElement.lang = isArabic ? 'ar' : 'en';
+        document.documentElement.dir = isArabic ? 'rtl' : 'ltr';
+        document.body.dir = isArabic ? 'rtl' : 'ltr';
+        document.getElementById('language-toggle').textContent = isArabic ? 'English' : 'العربية';
+        document.getElementById('manual-refresh').textContent = isArabic ? 'تحديث' : 'Refresh';
+        const walker = document.createTreeWalker(document.querySelector('.terminal'), NodeFilter.SHOW_TEXT);
+        let node;
+        while ((node = walker.nextNode())) {
+            if (!node.__gWatcherOriginal) node.__gWatcherOriginal = node.nodeValue;
+            const original = node.__gWatcherOriginal;
+            const clean = original.trim();
+            if (!clean) continue;
+            const translated = isArabic ? (I18N[clean] || clean) : clean;
+            node.nodeValue = original.replace(clean, translated);
+        }
+        document.getElementById('global-status').textContent = tr(state.gold.online && state.dxy.online ? 'All Feeds Live' : (state.gold.online || state.dxy.online ? 'Partial Feed' : 'Feed Offline'));
+        ['gold-status','g24-status','g21-status','dxy-status'].forEach(id => {
+            const el = document.getElementById(id);
+            el.textContent = tr((el.textContent === 'Live' || el.textContent === 'مباشر') ? 'Live' : ((el.textContent === 'Offline' || el.textContent === 'غير متصل') ? 'Offline' : 'Connecting'));
+        });
+        const dir = document.getElementById('dxy-direction');
+        if (dir.textContent === 'Awaiting ticks' || dir.textContent === 'بانتظار تحديثات السوق') dir.textContent = tr('Awaiting ticks');
+        else if (dir.textContent.startsWith('Session: ') || dir.textContent.startsWith('الجلسة: ')) dir.textContent = dir.textContent.replace(/^Session: |^الجلسة: /, tr('Session: '));
+        const trend = document.getElementById('snapshot-trend');
+        if (trend.textContent === 'NEUTRAL' || trend.textContent === 'محايد') trend.textContent = tr('NEUTRAL');
+        else if (trend.textContent.startsWith('BULLISH') || trend.textContent.startsWith('اتجاه صاعد')) trend.textContent = trend.textContent.replace(/^BULLISH|^اتجاه صاعد/, tr('BULLISH'));
+        else if (trend.textContent.startsWith('BEARISH') || trend.textContent.startsWith('اتجاه هابط')) trend.textContent = trend.textContent.replace(/^BEARISH|^اتجاه هابط/, tr('BEARISH'));
+        else if (trend.textContent === 'SESSION FLAT' || trend.textContent === 'استقرار خلال الجلسة') trend.textContent = tr('SESSION FLAT');
+        const snapChange = document.getElementById('snap-dxy-change');
+        snapChange.textContent = snapChange.textContent.replace(/^Session: |^الجلسة: /, tr('Session: '));
+        localStorage.setItem('gwatcher-language', lang);
+        document.getElementById('language-toggle').setAttribute('aria-label', isArabic ? 'تغيير اللغة' : 'Switch language');
+        drawChart();
+    }
+    document.getElementById('language-toggle').addEventListener('click', () => applyLanguage(currentLanguage() === 'ar' ? 'en' : 'ar'));
+
+    // ============================================================
     // Event Listeners & Boot
     // ============================================================
     els.omrRateInput.addEventListener('input', (e) => {
@@ -1388,6 +1472,7 @@
         if (!document.hidden) tick();
     });
 
+    applyLanguage(currentLanguage());
     tick();
     setInterval(() => {
         if (!document.hidden) tick();
