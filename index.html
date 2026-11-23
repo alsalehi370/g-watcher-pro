@@ -13,6 +13,7 @@
     <title>G Watcher Pro — Live Gold &amp; Dollar Index Terminal</title>
     <style>
         :root {
+            color-scheme: dark;
             --bg-primary: #080b10;
             --bg-surface: #111621;
             --bg-elevated: #171e2c;
@@ -29,6 +30,27 @@
             --down: #ef4444;
             --down-bg: rgba(239, 68, 68, 0.12);
         }
+
+        body[data-theme="light"] {
+            color-scheme: light;
+            --bg-primary: #f3f6fa;
+            --bg-surface: #ffffff;
+            --bg-elevated: #edf1f6;
+            --border-subtle: #d9e0e9;
+            --border-highlight: #b9c5d4;
+            --gold-primary: #a66b00;
+            --gold-bright: #d99a16;
+            --gold-dim: rgba(217, 154, 22, 0.13);
+            --text-primary: #172334;
+            --text-secondary: #526174;
+            --text-muted: #748297;
+            --up: #07865e;
+            --up-bg: rgba(7, 134, 94, 0.10);
+            --down: #c83232;
+            --down-bg: rgba(200, 50, 50, 0.10);
+        }
+
+        body[data-theme="light"] { background-image: radial-gradient(circle at 15% 0%, rgba(217,154,22,.07), transparent 38%), radial-gradient(circle at 85% 100%, rgba(7,134,94,.04), transparent 35%); }
 
         * {
             margin: 0;
@@ -441,6 +463,15 @@
             color: var(--gold-primary);
         }
 
+        .indicator-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin: 0 0 12px; }
+        .indicator-label { color:var(--text-secondary); font-size:11px; font-weight:700; margin-inline-end:4px; }
+        .indicator-toggle { border:1px solid var(--border-highlight); background:var(--bg-elevated); color:var(--text-secondary); border-radius:8px; padding:7px 10px; font-family:inherit; font-size:11px; font-weight:600; cursor:pointer; }
+        .indicator-toggle[aria-pressed="true"] { color:var(--gold-primary); border-color:var(--gold-primary); background:var(--gold-dim); }
+        .indicator-note { color:var(--text-muted); font-size:10px; line-height:1.45; margin-top:8px; }
+        .theme-toggle { min-width:76px; }
+        .chart-tabs { flex-wrap:wrap; }
+        @media (max-width: 600px) { .indicator-toolbar { gap:6px; } .indicator-toggle { padding:7px 8px; } }
+
         .chart-stats-bar {
             display: flex;
             flex-wrap: wrap;
@@ -642,6 +673,7 @@
                 <strong id="last-updated">--:--:--</strong>
             </div>
 
+            <button type="button" class="btn-refresh theme-toggle" id="theme-toggle" aria-label="Switch theme">☀ Light</button>
             <button type="button" class="btn-refresh" id="language-toggle" aria-label="Switch language">العربية</button>
             <button type="button" class="btn-refresh" id="manual-refresh">Refresh</button>
         </div>
@@ -763,8 +795,17 @@
                 </div>
                 <div class="chart-tabs" role="tablist">
                     <button type="button" class="chart-tab active" data-series="xau">XAU/USD</button>
+                    <button type="button" class="chart-tab" data-series="dxy">DXY</button>
                     <button type="button" class="chart-tab" data-series="omr24">24K OMR/g</button>
                 </div>
+            </div>
+
+            <div class="indicator-toolbar" aria-label="Chart indicators">
+                <span class="indicator-label" data-i18n="Indicators">Indicators</span>
+                <button type="button" class="indicator-toggle" data-indicator="rsi" aria-pressed="true">RSI</button>
+                <button type="button" class="indicator-toggle" data-indicator="ema20" aria-pressed="true">EMA 20</button>
+                <button type="button" class="indicator-toggle" data-indicator="ema50" aria-pressed="true">EMA 50</button>
+                <button type="button" class="indicator-toggle" data-indicator="volume" aria-pressed="true" data-i18n="Tick Volume">Tick Volume</button>
             </div>
 
             <div class="chart-stats-bar">
@@ -778,6 +819,7 @@
                 <canvas id="goldChart"></canvas>
                 <div class="chart-empty" id="chart-empty">Collecting live market ticks...</div>
             </div>
+            <div class="indicator-note" data-i18n="indicator-note">Indicators use the live 5-second quote samples. Tick Volume is quote-update activity, not actual traded exchange volume.</div>
         </div>
 
         <!-- Market Snapshot -->
@@ -873,8 +915,9 @@
         g24:  { openPrice: null, lastPrice: null, flashTimers: [] },
         g21:  { openPrice: null, lastPrice: null, flashTimers: [] },
         dxy:  { openPrice: null, lastPrice: null, flashTimers: [], online: false },
-        history: [], // { time: Date, xau: number }
-        activeSeries: 'xau'
+        history: [], // { time: Date, xau: number|null, dxy: number|null }
+        activeSeries: 'xau',
+        indicators: { rsi: true, ema20: true, ema50: true, volume: true }
     };
 
     let isTickRunning = false;
@@ -1136,183 +1179,91 @@
     // ============================================================
     // Session Chart (Canvas)
     // ============================================================
-    function getSeriesValues() {
-        const rate = CONFIG.usdToOmr;
-        return state.history.map((pt) => {
-            if (state.activeSeries === 'omr24') {
-                return (pt.xau / TROY_OUNCE_IN_GRAMS) * PURITY_24K * rate;
-            }
-            return pt.xau;
-        });
+    function getActivePoints() {
+        return state.history.filter(pt => Number.isFinite(pt[state.activeSeries === 'omr24' ? 'xau' : state.activeSeries]));
     }
-
+    function getSeriesValues(points = getActivePoints()) {
+        const rate = CONFIG.usdToOmr;
+        return points.map(pt => state.activeSeries === 'omr24'
+            ? (pt.xau / TROY_OUNCE_IN_GRAMS) * PURITY_24K * rate
+            : pt[state.activeSeries]);
+    }
+    function calculateEMA(values, period) {
+        const out = Array(values.length).fill(null);
+        if (values.length < period) return out;
+        const k = 2 / (period + 1);
+        let ema = values.slice(0, period).reduce((a,b) => a+b, 0) / period;
+        out[period - 1] = ema;
+        for (let i = period; i < values.length; i++) { ema = values[i] * k + ema * (1-k); out[i] = ema; }
+        return out;
+    }
+    function calculateRSI(values, period = 14) {
+        const out = Array(values.length).fill(null);
+        if (values.length <= period) return out;
+        let gains = 0, losses = 0;
+        for (let i=1; i<=period; i++) { const d=values[i]-values[i-1]; if(d>=0) gains+=d; else losses-=d; }
+        let avgGain=gains/period, avgLoss=losses/period;
+        out[period] = avgLoss === 0 ? 100 : 100 - (100/(1+avgGain/avgLoss));
+        for(let i=period+1;i<values.length;i++) { const d=values[i]-values[i-1]; avgGain=(avgGain*(period-1)+Math.max(d,0))/period; avgLoss=(avgLoss*(period-1)+Math.max(-d,0))/period; out[i]=avgLoss===0?100:100-(100/(1+avgGain/avgLoss)); }
+        return out;
+    }
     function drawChart() {
-        const canvas = els.canvas;
-        const ctx = canvas.getContext('2d');
-        const dpr = window.devicePixelRatio || 1;
-        const rect = canvas.getBoundingClientRect();
-
-        if (rect.width === 0 || rect.height === 0) return;
-
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
-        ctx.scale(dpr, dpr);
-
-        const w = rect.width;
-        const h = rect.height;
-        ctx.clearRect(0, 0, w, h);
-
-        const values = getSeriesValues();
-        const decimals = state.activeSeries === 'omr24' ? 3 : 2;
-
-        els.statTicks.textContent = values.length;
-
-        if (values.length === 0) {
-            els.chartEmpty.style.display = 'flex';
-            return;
+        const canvas = els.canvas, ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1, rect = canvas.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        canvas.width = Math.round(rect.width*dpr); canvas.height = Math.round(rect.height*dpr);
+        ctx.setTransform(dpr,0,0,dpr,0,0);
+        const w=rect.width,h=rect.height; ctx.clearRect(0,0,w,h);
+        const points=getActivePoints(), values=getSeriesValues(points);
+        const decimals=state.activeSeries==='omr24'?3:(state.activeSeries==='dxy'?3:2);
+        els.statTicks.textContent=values.length;
+        if(!values.length){els.chartEmpty.style.display='flex';return;}
+        els.chartEmpty.style.display='none';
+        const openVal=values[0], highVal=Math.max(...values), lowVal=Math.min(...values), lastVal=values.at(-1);
+        els.statOpen.textContent=formatNum(openVal,decimals); els.statHigh.textContent=formatNum(highVal,decimals); els.statLow.textContent=formatNum(lowVal,decimals);
+        const showRsi=state.indicators.rsi && state.activeSeries!=='omr24';
+        const showVol=state.indicators.volume;
+        const padLeft=14,padRight=68,padTop=18,padBottom=24;
+        const lowerH=(showRsi?Math.max(48,h*.20):0)+(showVol?Math.max(38,h*.16):0);
+        const gap=(showRsi&&showVol)?8:0;
+        const priceH=Math.max(65,h-padTop-padBottom-lowerH-gap);
+        const plotW=w-padLeft-padRight;
+        const xFor=i=>values.length===1?padLeft+plotW/2:padLeft+(i/(values.length-1))*plotW;
+        const ema20=state.indicators.ema20?calculateEMA(values,20):[];
+        const ema50=state.indicators.ema50?calculateEMA(values,50):[];
+        let min=lowVal,max=highVal;
+        [ema20,ema50].forEach(a=>a.forEach(v=>{if(v!=null){min=Math.min(min,v);max=Math.max(max,v);}}));
+        if(max===min){const pad=max*.0005||.01;max+=pad;min-=pad;}else{const spread=max-min;max+=spread*.12;min-=spread*.12;}
+        const yFor=v=>padTop+((max-v)/(max-min))*priceH;
+        const css=getComputedStyle(document.body);
+        const grid=css.getPropertyValue('--border-subtle').trim()||'#263246';
+        const axis=css.getPropertyValue('--text-muted').trim()||'#718096';
+        ctx.font='11px system-ui';ctx.textAlign='left';ctx.textBaseline='middle';
+        for(let i=0;i<=4;i++){const y=padTop+i*priceH/4,val=max-i*(max-min)/4;ctx.strokeStyle=grid;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(padLeft,y);ctx.lineTo(w-padRight,y);ctx.stroke();ctx.fillStyle=axis;ctx.fillText(val.toFixed(decimals),w-padRight+7,y);}
+        const isUp=lastVal>=openVal,priceColor=isUp?'#d99a16':'#e05252';
+        if(values.length>1){
+            const grad=ctx.createLinearGradient(0,padTop,0,padTop+priceH);grad.addColorStop(0,isUp?'rgba(217,154,22,.22)':'rgba(224,82,82,.20)');grad.addColorStop(1,'rgba(120,120,120,0)');
+            ctx.beginPath();ctx.moveTo(xFor(0),yFor(values[0]));for(let i=1;i<values.length;i++)ctx.lineTo(xFor(i),yFor(values[i]));ctx.lineTo(xFor(values.length-1),padTop+priceH);ctx.lineTo(xFor(0),padTop+priceH);ctx.closePath();ctx.fillStyle=grad;ctx.fill();
+            ctx.beginPath();ctx.moveTo(xFor(0),yFor(values[0]));for(let i=1;i<values.length;i++)ctx.lineTo(xFor(i),yFor(values[i]));ctx.strokeStyle=priceColor;ctx.lineWidth=2;ctx.lineJoin='round';ctx.stroke();
         }
-
-        els.chartEmpty.style.display = 'none';
-
-        const openVal = values[0];
-        const highVal = Math.max(...values);
-        const lowVal = Math.min(...values);
-        const lastVal = values[values.length - 1];
-
-        els.statOpen.textContent = formatNum(openVal, decimals);
-        els.statHigh.textContent = formatNum(highVal, decimals);
-        els.statLow.textContent = formatNum(lowVal, decimals);
-
-        const padLeft = 14;
-        const padRight = 68;
-        const padTop = 20;
-        const padBottom = 26;
-        const plotW = w - padLeft - padRight;
-        const plotH = h - padTop - padBottom;
-
-        let min = lowVal;
-        let max = highVal;
-        if (max === min) {
-            const pad = max * 0.0005 || 0.01;
-            max += pad;
-            min -= pad;
-        } else {
-            const spread = max - min;
-            max += spread * 0.14;
-            min -= spread * 0.14;
+        function drawOverlay(arr,color){if(!arr.length)return;ctx.beginPath();let started=false;arr.forEach((v,i)=>{if(v==null)return;const x=xFor(i),y=yFor(v);if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);});if(started){ctx.strokeStyle=color;ctx.lineWidth=1.6;ctx.stroke();}}
+        drawOverlay(ema20,'#38bdf8');drawOverlay(ema50,'#c084fc');
+        const lastX=xFor(values.length-1),lastY=yFor(lastVal);ctx.beginPath();ctx.arc(lastX,lastY,3.8,0,Math.PI*2);ctx.fillStyle=priceColor;ctx.fill();
+        ctx.fillStyle=priceColor;ctx.beginPath();ctx.roundRect(w-padRight+3,Math.max(padTop,Math.min(padTop+priceH-18,lastY-9)),padRight-7,18,4);ctx.fill();ctx.fillStyle='#fff';ctx.font='bold 10px system-ui';ctx.fillText(lastVal.toFixed(decimals),w-padRight+7,Math.max(padTop+9,Math.min(padTop+priceH-9,lastY)));
+        let lowerY=padTop+priceH+gap;
+        if(showRsi){
+            const rsi=calculateRSI(values,14),rh=Math.max(42,h*.20),ry=v=>lowerY+rh-(v/100)*rh;
+            [30,70].forEach(level=>{ctx.strokeStyle=grid;ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(padLeft,ry(level));ctx.lineTo(w-padRight,ry(level));ctx.stroke();});ctx.setLineDash([]);
+            ctx.fillStyle=axis;ctx.font='10px system-ui';ctx.fillText('RSI 14',padLeft+3,lowerY+8);ctx.fillText('70',w-padRight+8,ry(70));ctx.fillText('30',w-padRight+8,ry(30));
+            ctx.beginPath();let started=false;rsi.forEach((v,i)=>{if(v==null)return;if(!started){ctx.moveTo(xFor(i),ry(v));started=true;}else ctx.lineTo(xFor(i),ry(v));});if(started){ctx.strokeStyle='#22c55e';ctx.lineWidth=1.6;ctx.stroke();}
+            lowerY+=rh+gap;
         }
-
-        const yFor = (val) => padTop + ((max - val) / (max - min)) * plotH;
-        const xFor = (idx) => {
-            if (values.length === 1) return padLeft + plotW / 2;
-            return padLeft + (idx / (values.length - 1)) * plotW;
-        };
-
-        // Horizontal Grid & Price Axis
-        ctx.font = '11px Inter, system-ui, sans-serif';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        const gridSteps = 4;
-        for (let i = 0; i <= gridSteps; i++) {
-            const ratio = i / gridSteps;
-            const y = padTop + ratio * plotH;
-            const val = max - ratio * (max - min);
-
-            ctx.strokeStyle = 'rgba(30, 39, 56, 0.7)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(padLeft, y);
-            ctx.lineTo(w - padRight, y);
-            ctx.stroke();
-
-            ctx.fillStyle = '#64748b';
-            ctx.fillText(val.toFixed(decimals), w - padRight + 8, y);
+        if(showVol){
+            const vh=Math.max(34,h*.16),base=lowerY+vh,barW=Math.max(1,plotW/Math.max(values.length,1)*.58);
+            ctx.fillStyle=axis;ctx.font='10px system-ui';ctx.fillText(state.activeSeries==='dxy'?'Tick activity':'Tick activity',padLeft+3,lowerY+7);
+            for(let i=0;i<values.length;i++){const changed=i===0||values[i]!==values[i-1];const bh=changed?vh*.72:vh*.12;ctx.fillStyle=changed?'rgba(56,189,248,.72)':'rgba(120,140,160,.25)';ctx.fillRect(xFor(i)-barW/2,base-bh,barW,bh);}
         }
-
-        // Session Open Reference Line
-        const openY = yFor(openVal);
-        ctx.save();
-        ctx.setLineDash([4, 4]);
-        ctx.strokeStyle = 'rgba(240, 180, 41, 0.45)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(padLeft, openY);
-        ctx.lineTo(w - padRight, openY);
-        ctx.stroke();
-        ctx.restore();
-
-        // Line Color based on Session Performance
-        const isUp = lastVal >= openVal;
-        const strokeColor = isUp ? '#f0b429' : '#ef4444';
-
-        // Area Fill
-        if (values.length > 1) {
-            const grad = ctx.createLinearGradient(0, padTop, 0, padTop + plotH);
-            if (isUp) {
-                grad.addColorStop(0, 'rgba(240, 180, 41, 0.26)');
-                grad.addColorStop(1, 'rgba(240, 180, 41, 0.0)');
-            } else {
-                grad.addColorStop(0, 'rgba(239, 68, 68, 0.24)');
-                grad.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
-            }
-
-            ctx.beginPath();
-            ctx.moveTo(xFor(0), yFor(values[0]));
-            for (let i = 1; i < values.length; i++) {
-                ctx.lineTo(xFor(i), yFor(values[i]));
-            }
-            ctx.lineTo(xFor(values.length - 1), padTop + plotH);
-            ctx.lineTo(xFor(0), padTop + plotH);
-            ctx.closePath();
-            ctx.fillStyle = grad;
-            ctx.fill();
-
-            // Price Line
-            ctx.beginPath();
-            ctx.moveTo(xFor(0), yFor(values[0]));
-            for (let i = 1; i < values.length; i++) {
-                ctx.lineTo(xFor(i), yFor(values[i]));
-            }
-            ctx.strokeStyle = strokeColor;
-            ctx.lineWidth = 2.2;
-            ctx.lineJoin = 'round';
-            ctx.stroke();
-        }
-
-        // Latest Point Marker & Tag
-        const lastX = xFor(values.length - 1);
-        const lastY = yFor(lastVal);
-
-        ctx.beginPath();
-        ctx.arc(lastX, lastY, 4.5, 0, Math.PI * 2);
-        ctx.fillStyle = strokeColor;
-        ctx.fill();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = '#080b10';
-        ctx.stroke();
-
-        // Highlighted Current Price Pill on Axis
-        const tagY = Math.min(Math.max(lastY, padTop + 8), padTop + plotH - 8);
-        ctx.fillStyle = strokeColor;
-        ctx.beginPath();
-        ctx.roundRect(w - padRight + 4, tagY - 10, padRight - 8, 20, 4);
-        ctx.fill();
-
-        ctx.fillStyle = '#080b10';
-        ctx.font = 'bold 11px Inter, system-ui, sans-serif';
-        ctx.fillText(lastVal.toFixed(decimals), w - padRight + 8, tagY);
-
-        // Time Labels (First & Last Tick)
-        ctx.fillStyle = '#556478';
-        ctx.font = '10px Inter, system-ui, sans-serif';
-        ctx.textAlign = 'left';
-        const firstTime = state.history[0].time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        const lastTime = state.history[state.history.length - 1].time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        ctx.fillText(firstTime, padLeft, h - 10);
-        if (values.length > 1) {
-            ctx.textAlign = 'right';
-            ctx.fillText(lastTime, w - padRight, h - 10);
-        }
+        ctx.fillStyle=axis;ctx.font='10px system-ui';ctx.textAlign='left';ctx.fillText(points[0].time.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),padLeft,h-9);if(values.length>1){ctx.textAlign='right';ctx.fillText(points.at(-1).time.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),w-padRight,h-9);}
     }
 
     // ============================================================
@@ -1337,11 +1288,6 @@
 
                 renderGoldDerivedValues(goldPrice, true);
 
-                state.history.push({ time: new Date(), xau: goldPrice });
-                if (state.history.length > CONFIG.maxHistoryPoints) {
-                    state.history.shift();
-                }
-                drawChart();
             } else {
                 console.warn(`[${CONFIG.goldSymbol}] Fetch failed:`, goldResult.reason?.message);
                 state.gold.online = false;
@@ -1361,6 +1307,9 @@
             }
 
             if (goldResult.status === 'fulfilled' || dxyResult.status === 'fulfilled') {
+                state.history.push({ time: new Date(), xau: state.gold.lastPrice, dxy: state.dxy.lastPrice });
+                if (state.history.length > CONFIG.maxHistoryPoints) state.history.shift();
+                drawChart();
                 updateTimestamp();
             }
             updateGlobalStatus();
@@ -1387,7 +1336,9 @@
         'Feed Synchronization': 'مزامنة مصادر البيانات', '5s Auto-Poll · Local Time': 'تحديث تلقائي كل 5 ثوانٍ · التوقيت المحلي',
         'Live': 'مباشر', 'Offline': 'غير متصل', 'All Feeds Live': 'جميع المصادر تعمل', 'Partial Feed': 'بعض المصادر تعمل',
         'Feed Offline': 'مصادر البيانات غير متصلة', 'BULLISH': 'اتجاه صاعد', 'BEARISH': 'اتجاه هابط', 'SESSION FLAT': 'استقرار خلال الجلسة',
-        'Session:': 'الجلسة:', 'Awaiting': 'بانتظار', 'Switch language': 'تغيير اللغة'
+        'Session:': 'الجلسة:', 'Awaiting': 'بانتظار', 'Switch language': 'تغيير اللغة',
+        'Indicators': 'المؤشرات', 'Tick Volume': 'حجم التحديثات', 'indicator-note': 'تُحسب المؤشرات من تحديثات الأسعار كل 5 ثوانٍ. حجم التحديثات يعكس تغيّر الأسعار المستلمة وليس حجم التداول الفعلي في السوق.',
+        'DXY': 'مؤشر الدولار', '24K OMR/g': 'عيار 24 ريال/جرام', 'Light': 'فاتح', 'Dark': 'داكن'
     };
     const dynamicText = new Map();
     function currentLanguage() { return localStorage.getItem('gwatcher-language') || 'en'; }
@@ -1407,6 +1358,8 @@
         document.body.dir = isArabic ? 'rtl' : 'ltr';
         document.getElementById('language-toggle').textContent = isArabic ? 'English' : 'العربية';
         document.getElementById('manual-refresh').textContent = isArabic ? 'تحديث' : 'Refresh';
+        document.querySelectorAll('[data-i18n]').forEach(el => { const key=el.dataset.i18n; el.textContent=isArabic?(I18N[key]||key): (key==='indicator-note'?'Indicators use the live 5-second quote samples. Tick Volume is quote-update activity, not actual traded exchange volume.':key); });
+        document.querySelectorAll('.chart-tab').forEach(btn=>{if(btn.dataset.series==='dxy')btn.textContent=isArabic?'مؤشر الدولار':'DXY';if(btn.dataset.series==='omr24')btn.textContent=isArabic?'عيار 24 ريال/جرام':'24K OMR/g';});
         const walker = document.createTreeWalker(document.querySelector('.terminal'), NodeFilter.SHOW_TEXT);
         let node;
         while ((node = walker.nextNode())) {
@@ -1434,9 +1387,29 @@
         snapChange.textContent = snapChange.textContent.replace(/^Session: |^الجلسة: /, tr('Session: '));
         localStorage.setItem('gwatcher-language', lang);
         document.getElementById('language-toggle').setAttribute('aria-label', isArabic ? 'تغيير اللغة' : 'Switch language');
+        const themeBtn=document.getElementById('theme-toggle'); if(themeBtn) themeBtn.textContent=currentTheme()==='light'?(isArabic?'داكن ☾':'☾ Dark'):(isArabic?'فاتح ☀':'☀ Light');
         drawChart();
     }
     document.getElementById('language-toggle').addEventListener('click', () => applyLanguage(currentLanguage() === 'ar' ? 'en' : 'ar'));
+
+    function currentTheme(){return localStorage.getItem('gwatcher-theme')||'dark';}
+    function applyTheme(theme){
+        const light=theme==='light'; document.body.dataset.theme=theme;
+        localStorage.setItem('gwatcher-theme',theme);
+        const btn=document.getElementById('theme-toggle');
+        btn.textContent=light?(currentLanguage()==='ar'?'داكن ☾':'☾ Dark'):(currentLanguage()==='ar'?'فاتح ☀':'☀ Light');
+        btn.setAttribute('aria-label',currentLanguage()==='ar'?'تغيير المظهر':'Switch theme');
+        const meta=document.querySelector('meta[name="theme-color"]');if(meta)meta.content=light?'#f3f6fa':'#080b10';
+        drawChart();
+    }
+    document.getElementById('theme-toggle').addEventListener('click',()=>applyTheme(currentTheme()==='dark'?'light':'dark'));
+    document.querySelectorAll('.indicator-toggle').forEach(btn=>{
+        const key=btn.dataset.indicator;
+        try{const saved=JSON.parse(localStorage.getItem('gwatcher-indicators')||'{}');if(typeof saved[key]==='boolean')state.indicators[key]=saved[key];}catch(_){}
+        btn.setAttribute('aria-pressed',String(state.indicators[key]));
+        btn.addEventListener('click',()=>{state.indicators[key]=!state.indicators[key];btn.setAttribute('aria-pressed',String(state.indicators[key]));localStorage.setItem('gwatcher-indicators',JSON.stringify(state.indicators));drawChart();});
+    });
+
 
     // ============================================================
     // Event Listeners & Boot
@@ -1473,6 +1446,7 @@
     });
 
     applyLanguage(currentLanguage());
+    applyTheme(currentTheme());
     tick();
     setInterval(() => {
         if (!document.hidden) tick();

@@ -31,3 +31,8 @@ The original dashboard requests XAUUSD and DXY from `https://biquote.io/api` eve
 - `manifest.webmanifest` — install name, display mode, colors, icons
 - `service-worker.js` — caches the app shell, never live quotes
 - `icons/` — app and iPhone home-screen icons
+
+
+## Technical indicators and display modes
+
+The chart now supports XAU/USD, DXY, and 24K OMR/g, with optional RSI (14), EMA 20, EMA 50, and a tick-activity histogram. EMA/RSI are calculated from the app's 5-second quote samples (not standard broker candle intervals). The data endpoint currently supplies quotes rather than traded-volume data, so the histogram is quote-change activity and must not be interpreted as actual exchange volume. Indicator visibility, language, and dark/light theme are saved on the device.
